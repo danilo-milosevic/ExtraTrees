@@ -8,6 +8,7 @@ private:
     void generate(int i_start, int i_end, float16_t max_value);
     void deallocateMemory();
     int thread_count;
+    float16_t mult;
 
 public:
     float16_t **data;

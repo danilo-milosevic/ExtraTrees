@@ -1,3 +1,4 @@
+#pragma once
 #include "DataGenerator.h"
 #include <iostream>
 #include <chrono>
@@ -12,30 +13,38 @@ DataGenerator::DataGenerator()
     n_features = 0;
     data = nullptr;
     generated = false;
-    thread_count = 10;
+    thread_count = 8;
 }
 
 void DataGenerator::generate(int i_start, int i_end, float16_t max_value)
 {
-    int j = 0;
-    for (int i = i_start; i < i_end; ++i)
+    int j;
+    for (int i = i_start; i < i_end && i < n_samples; ++i)
     {
+        int r = (((double)rand()) / RAND_MAX) * max_label;
+        labels[i] = r;
+        j = 0;
         for (; j <= n_features - 8; j += 8)
         {
-            labels[i] = rand() % max_label;
             uint16x8_t random_vals = {
-                static_cast<uint16_t>(rand()),
-                static_cast<uint16_t>(rand()),
-                static_cast<uint16_t>(rand()),
-                static_cast<uint16_t>(rand()),
-                static_cast<uint16_t>(rand()),
-                static_cast<uint16_t>(rand()),
-                static_cast<uint16_t>(rand()),
-                static_cast<uint16_t>(rand())};
+                static_cast<uint16_t>(rand() % 65504),
+                static_cast<uint16_t>(rand() % 65504),
+                static_cast<uint16_t>(rand() % 65504),
+                static_cast<uint16_t>(rand() % 65504),
+                static_cast<uint16_t>(rand() % 65504),
+                static_cast<uint16_t>(rand() % 65504),
+                static_cast<uint16_t>(rand() % 65504),
+                static_cast<uint16_t>(rand() % 65504)};
+
             float16x8_t float_vals = vcvtq_f16_u16(random_vals);
-            float16x8_t normalized_vals = vmulq_n_f16(float_vals, (float16_t)(max_value / RAND_MAX));
+            float16x8_t normalized_vals = vmulq_n_f16(float_vals, mult);
             vst1q_f16(&data[i][j], normalized_vals);
         }
+        // while (j < n_features)
+        // {
+        //     data[i][j] = (float16_t)(rand()) * mult;
+        //     ++j;
+        // }
     }
 }
 
@@ -53,7 +62,7 @@ void DataGenerator::deallocateMemory()
 void DataGenerator::GenerateData(int n_samples, int n_features, float16_t max_value, int max_label)
 {
     auto start = std::chrono::high_resolution_clock::now();
-
+    mult = max_value / (float16_t)65504;
     // If dimensions are wrong but the memory has already been allocated, deallocate it
     if (generated && (n_samples != this->n_samples || n_features != this->n_features))
     {
